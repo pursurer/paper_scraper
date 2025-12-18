@@ -411,6 +411,265 @@ def _scrape_aaai_track(
     return papers
 
 
+# ============ AISTATS 爬虫 (PMLR) ============
+
+# AISTATS 年份到 PMLR volume 的映射
+AISTATS_VOLUMES = {
+    2025: 258, 2024: 238, 2023: 206, 2022: 151, 2021: 130,
+    2020: 108, 2019: 89, 2018: 84, 2017: 54, 2016: 51,
+    2015: 38, 2014: 33, 2013: 31, 2012: 22, 2011: 15,
+    2010: 9, 2009: 5, 2007: 2,
+}
+
+
+def scrape_aistats(
+    year: int,
+    output_path: Optional[str] = None,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    爬取 AISTATS 论文列表（从 PMLR）。
+    
+    Args:
+        year: 会议年份（如 2024）
+        output_path: 输出 CSV 路径（可选）
+        verbose: 是否打印日志
+        
+    Returns:
+        论文列表
+        
+    Example:
+        >>> papers = scrape_aistats(2024, output_path='aistats_2024.csv')
+    """
+    if verbose:
+        print(f"\n🔍 爬取 AISTATS {year} 论文 (PMLR)...")
+    
+    if year not in AISTATS_VOLUMES:
+        if verbose:
+            print(f"   ❌ 不支持 AISTATS {year}")
+        return []
+    
+    volume = AISTATS_VOLUMES[year]
+    papers = scrape_pmlr(f'v{volume}', 'AISTATS', year, verbose)
+    
+    if verbose:
+        print(f"   ✅ 找到 {len(papers)} 篇论文")
+    
+    if output_path and papers:
+        _save_papers_csv(papers, output_path, verbose)
+    
+    return papers
+
+
+def scrape_pmlr(
+    volume: str,
+    conference: str,
+    year: int,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    从 PMLR (Proceedings of Machine Learning Research) 爬取论文。
+    
+    Args:
+        volume: PMLR volume，如 'v238'
+        conference: 会议名称
+        year: 年份
+        verbose: 是否打印日志
+        
+    Returns:
+        论文列表
+    """
+    base_url = f'https://proceedings.mlr.press/{volume}/'
+    
+    headers = {
+        'User-Agent': get_random_user_agent(),
+    }
+    
+    html = fetch_page(base_url, headers=headers, verbose=verbose)
+    if not html:
+        return []
+    
+    soup = BeautifulSoup(html, 'html.parser')
+    paper_divs = soup.find_all('div', {'class': 'paper'})
+    
+    papers = []
+    for div in paper_divs:
+        try:
+            # 标题
+            title_p = div.find('p', {'class': 'title'})
+            if not title_p:
+                continue
+            title = title_p.get_text(strip=True)
+            
+            # PDF 链接
+            pdf_url = ''
+            links_p = div.find('p', {'class': 'links'})
+            if links_p:
+                for a in links_p.find_all('a'):
+                    text = a.get_text(strip=True).lower()
+                    if 'pdf' in text or 'download' in text:
+                        pdf_url = a.get('href', '')
+                        break
+            
+            papers.append({
+                'title': title,
+                'pdf_url': pdf_url,
+                'group': '',
+                'year': str(year),
+                'conference': conference,
+            })
+        except Exception:
+            pass
+    
+    return papers
+
+
+# ============ ACL Anthology 爬虫 ============
+
+def scrape_acl_anthology(
+    conference: str,
+    year: int,
+    output_path: Optional[str] = None,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    从 ACL Anthology 爬取论文列表。
+    
+    支持 ACL, EMNLP, NAACL, EACL, COLING 等会议。
+    
+    Args:
+        conference: 会议名称 ('ACL', 'EMNLP', 'NAACL' 等)
+        year: 会议年份
+        output_path: 输出 CSV 路径
+        verbose: 是否打印日志
+        
+    Returns:
+        论文列表
+        
+    Example:
+        >>> papers = scrape_acl_anthology('ACL', 2023)
+    """
+    if verbose:
+        print(f"\n🔍 爬取 {conference} {year} 论文 (ACL Anthology)...")
+    
+    # ACL Anthology 的会议代码映射
+    conf_codes = {
+        'ACL': 'acl',
+        'EMNLP': 'emnlp',
+        'NAACL': 'naacl',
+        'EACL': 'eacl',
+        'COLING': 'coling',
+        'FINDINGS': 'findings',
+    }
+    
+    conf_upper = conference.upper()
+    if conf_upper not in conf_codes:
+        if verbose:
+            print(f"   ❌ 不支持的会议: {conference}")
+        return []
+    
+    code = conf_codes[conf_upper]
+    
+    # ACL Anthology URL 格式
+    # 主会议: https://aclanthology.org/events/acl-2023/
+    base_url = f'https://aclanthology.org/events/{code}-{year}/'
+    
+    headers = {
+        'User-Agent': get_random_user_agent(),
+    }
+    
+    html = fetch_page(base_url, headers=headers, verbose=verbose)
+    if not html:
+        if verbose:
+            print(f"   ❌ 无法获取 {conference} {year} 页面")
+        return []
+    
+    papers = _parse_acl_anthology_page(html, conf_upper, year, verbose)
+    
+    if verbose:
+        print(f"   ✅ 找到 {len(papers)} 篇论文")
+    
+    if output_path and papers:
+        _save_papers_csv(papers, output_path, verbose)
+    
+    return papers
+
+
+def _parse_acl_anthology_page(
+    html: str,
+    conference: str,
+    year: int,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """解析 ACL Anthology 页面。"""
+    soup = BeautifulSoup(html, 'html.parser')
+    papers = []
+    
+    # 查找所有论文条目
+    # ACL Anthology 使用 <p class="d-sm-flex align-items-stretch"> 包装论文
+    paper_entries = soup.find_all('p', {'class': 'd-sm-flex'})
+    
+    for entry in paper_entries:
+        try:
+            # 查找标题链接
+            title_span = entry.find('span', {'class': 'd-block'})
+            if not title_span:
+                continue
+            
+            title_link = title_span.find('a', {'class': 'align-middle'})
+            if not title_link:
+                continue
+            
+            title = title_link.get_text(strip=True)
+            paper_url = title_link.get('href', '')
+            
+            # PDF 链接通常是 paper_url + .pdf
+            pdf_url = ''
+            if paper_url:
+                # 从论文页面 URL 构造 PDF URL
+                # https://aclanthology.org/2023.acl-long.1/ -> https://aclanthology.org/2023.acl-long.1.pdf
+                pdf_url = f'https://aclanthology.org{paper_url}'.rstrip('/') + '.pdf'
+            
+            papers.append({
+                'title': title,
+                'pdf_url': pdf_url,
+                'group': '',
+                'year': str(year),
+                'conference': conference,
+            })
+        except Exception:
+            pass
+    
+    return papers
+
+
+def scrape_acl(
+    year: int,
+    output_path: Optional[str] = None,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """爬取 ACL 论文。"""
+    return scrape_acl_anthology('ACL', year, output_path, verbose)
+
+
+def scrape_emnlp(
+    year: int,
+    output_path: Optional[str] = None,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """爬取 EMNLP 论文。"""
+    return scrape_acl_anthology('EMNLP', year, output_path, verbose)
+
+
+def scrape_naacl(
+    year: int,
+    output_path: Optional[str] = None,
+    verbose: bool = True
+) -> List[Dict[str, Any]]:
+    """爬取 NAACL 论文。"""
+    return scrape_acl_anthology('NAACL', year, output_path, verbose)
+
+
 # ============ 通用保存函数 ============
 
 def _save_papers_csv(
@@ -473,10 +732,14 @@ def scrape_conference(
     scrapers = {
         'IJCAI': scrape_ijcai,
         'AAAI': scrape_aaai,
+        'AISTATS': scrape_aistats,
+        'ACL': scrape_acl,
+        'EMNLP': scrape_emnlp,
+        'NAACL': scrape_naacl,
     }
     
     if conference not in scrapers:
-        supported = ', '.join(scrapers.keys())
+        supported = ', '.join(sorted(scrapers.keys()))
         raise ValueError(f"不支持的会议: {conference}。支持: {supported}")
     
     return scrapers[conference](year, output_path, verbose)

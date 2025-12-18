@@ -87,10 +87,20 @@ from .paper import (
 # 核心 Scraper 类
 from .scraper import Scraper, create_scraper
 
-# 网页爬取（AAAI, IJCAI 等）
+# 网页爬取（AAAI, IJCAI, AISTATS, ACL 等）
 from .web_scraper import (
+    # IJCAI, AAAI
     scrape_ijcai,
     scrape_aaai,
+    # AISTATS (PMLR)
+    scrape_aistats,
+    scrape_pmlr,
+    # ACL Anthology
+    scrape_acl,
+    scrape_emnlp,
+    scrape_naacl,
+    scrape_acl_anthology,
+    # 统一入口
     scrape_conference,
     batch_scrape,
 )
@@ -136,6 +146,12 @@ __all__ = [
     # 网页爬取
     "scrape_ijcai",
     "scrape_aaai",
+    "scrape_aistats",
+    "scrape_pmlr",
+    "scrape_acl",
+    "scrape_emnlp",
+    "scrape_naacl",
+    "scrape_acl_anthology",
     "scrape_conference",
     "batch_scrape",
 ]

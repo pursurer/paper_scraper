@@ -13,13 +13,21 @@ from paper_scraper.web_scraper import (
     fetch_page,
     scrape_ijcai,
     scrape_aaai,
+    scrape_aistats,
+    scrape_pmlr,
+    scrape_acl,
+    scrape_emnlp,
+    scrape_naacl,
+    scrape_acl_anthology,
     scrape_conference,
     batch_scrape,
     _parse_ijcai_page,
     _get_aaai_track_urls,
     _scrape_aaai_track,
+    _parse_acl_anthology_page,
     _save_papers_csv,
     USER_AGENTS,
+    AISTATS_VOLUMES,
 )
 
 
@@ -260,6 +268,147 @@ class TestScrapeAaai:
         assert papers == []
 
 
+# ============ AISTATS/PMLR 爬虫测试 ============
+
+class TestAistatsVolumes:
+    """测试 AISTATS 年份映射"""
+    
+    def test_volumes_dict_exists(self):
+        """测试映射字典存在"""
+        assert isinstance(AISTATS_VOLUMES, dict)
+        assert len(AISTATS_VOLUMES) > 0
+    
+    def test_recent_years(self):
+        """测试近年份存在"""
+        assert 2024 in AISTATS_VOLUMES
+        assert 2023 in AISTATS_VOLUMES
+
+
+class TestScrapePmlr:
+    """测试 PMLR 爬取"""
+    
+    def test_returns_list(self):
+        """测试返回列表"""
+        mock_html = '''
+        <html><body>
+            <div class="paper">
+                <p class="title">Test Paper</p>
+                <p class="links"><a href="paper.pdf">Download PDF</a></p>
+            </div>
+        </body></html>
+        '''
+        
+        with patch('paper_scraper.web_scraper.fetch_page', return_value=mock_html):
+            papers = scrape_pmlr('v238', 'AISTATS', 2024, verbose=False)
+        
+        assert isinstance(papers, list)
+        assert len(papers) == 1
+        assert papers[0]['conference'] == 'AISTATS'
+    
+    def test_no_network(self):
+        """测试网络失败"""
+        with patch('paper_scraper.web_scraper.fetch_page', return_value=None):
+            papers = scrape_pmlr('v238', 'AISTATS', 2024, verbose=False)
+        
+        assert papers == []
+
+
+class TestScrapeAistats:
+    """测试 AISTATS 爬取"""
+    
+    def test_unsupported_year(self):
+        """测试不支持的年份"""
+        papers = scrape_aistats(1990, verbose=False)
+        assert papers == []
+    
+    def test_calls_pmlr(self):
+        """测试调用 PMLR"""
+        with patch('paper_scraper.web_scraper.scrape_pmlr', return_value=[{'title': 'Test'}]) as mock:
+            papers = scrape_aistats(2024, verbose=False)
+        
+        mock.assert_called_once()
+        assert papers == [{'title': 'Test'}]
+
+
+# ============ ACL Anthology 爬虫测试 ============
+
+class TestParseAclAnthologyPage:
+    """测试 ACL Anthology 页面解析"""
+    
+    def test_parse_paper_entries(self):
+        """测试解析论文条目"""
+        mock_html = '''
+        <html><body>
+            <p class="d-sm-flex align-items-stretch">
+                <span class="d-block">
+                    <a class="align-middle" href="/2023.acl-long.1/">Paper Title 1</a>
+                </span>
+            </p>
+        </body></html>
+        '''
+        
+        papers = _parse_acl_anthology_page(mock_html, 'ACL', 2023, verbose=False)
+        
+        assert len(papers) == 1
+        assert papers[0]['title'] == 'Paper Title 1'
+        assert papers[0]['conference'] == 'ACL'
+        assert '.pdf' in papers[0]['pdf_url']
+    
+    def test_empty_page(self):
+        """测试空页面"""
+        papers = _parse_acl_anthology_page('<html></html>', 'ACL', 2023, verbose=False)
+        assert papers == []
+
+
+class TestScrapeAclAnthology:
+    """测试 ACL Anthology 爬取"""
+    
+    def test_unsupported_conference(self):
+        """测试不支持的会议"""
+        papers = scrape_acl_anthology('UNKNOWN', 2023, verbose=False)
+        assert papers == []
+    
+    def test_returns_list(self):
+        """测试返回列表"""
+        with patch('paper_scraper.web_scraper.fetch_page', return_value='<html></html>'):
+            papers = scrape_acl_anthology('ACL', 2023, verbose=False)
+        
+        assert isinstance(papers, list)
+
+
+class TestScrapeAcl:
+    """测试 ACL 爬取"""
+    
+    def test_calls_anthology(self):
+        """测试调用 ACL Anthology"""
+        with patch('paper_scraper.web_scraper.scrape_acl_anthology', return_value=[]) as mock:
+            scrape_acl(2023, verbose=False)
+        
+        mock.assert_called_once_with('ACL', 2023, None, False)
+
+
+class TestScrapeEmnlp:
+    """测试 EMNLP 爬取"""
+    
+    def test_calls_anthology(self):
+        """测试调用 ACL Anthology"""
+        with patch('paper_scraper.web_scraper.scrape_acl_anthology', return_value=[]) as mock:
+            scrape_emnlp(2023, verbose=False)
+        
+        mock.assert_called_once_with('EMNLP', 2023, None, False)
+
+
+class TestScrapeNaacl:
+    """测试 NAACL 爬取"""
+    
+    def test_calls_anthology(self):
+        """测试调用 ACL Anthology"""
+        with patch('paper_scraper.web_scraper.scrape_acl_anthology', return_value=[]) as mock:
+            scrape_naacl(2023, verbose=False)
+        
+        mock.assert_called_once_with('NAACL', 2023, None, False)
+
+
 # ============ 统一入口测试 ============
 
 class TestScrapeConference:
@@ -279,6 +428,34 @@ class TestScrapeConference:
             papers = scrape_conference('AAAI', 2024, verbose=False)
         
         mock.assert_called_once_with(2024, None, False)
+    
+    def test_dispatch_to_aistats(self):
+        """测试分发到 AISTATS"""
+        with patch('paper_scraper.web_scraper.scrape_aistats', return_value=[]) as mock:
+            papers = scrape_conference('AISTATS', 2024, verbose=False)
+        
+        mock.assert_called_once_with(2024, None, False)
+    
+    def test_dispatch_to_acl(self):
+        """测试分发到 ACL"""
+        with patch('paper_scraper.web_scraper.scrape_acl', return_value=[]) as mock:
+            papers = scrape_conference('ACL', 2023, verbose=False)
+        
+        mock.assert_called_once_with(2023, None, False)
+    
+    def test_dispatch_to_emnlp(self):
+        """测试分发到 EMNLP"""
+        with patch('paper_scraper.web_scraper.scrape_emnlp', return_value=[]) as mock:
+            papers = scrape_conference('EMNLP', 2023, verbose=False)
+        
+        mock.assert_called_once_with(2023, None, False)
+    
+    def test_dispatch_to_naacl(self):
+        """测试分发到 NAACL"""
+        with patch('paper_scraper.web_scraper.scrape_naacl', return_value=[]) as mock:
+            papers = scrape_conference('NAACL', 2023, verbose=False)
+        
+        mock.assert_called_once_with(2023, None, False)
     
     def test_case_insensitive(self):
         """测试大小写不敏感"""
