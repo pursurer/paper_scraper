@@ -70,6 +70,7 @@ class Scraper:
         only_accepted: bool = True,
         client: Any = None,
         verbose: bool = True,
+        exclude_workshops: bool = True,
     ):
         """
         初始化 Scraper。
@@ -85,6 +86,7 @@ class Scraper:
             only_accepted: 是否只获取已接受的论文（默认 True）
             client: OpenReview API client（可选，默认自动创建）
             verbose: 是否打印日志（默认 True）
+            exclude_workshops: 是否排除 Workshop（默认 True）
         """
         self.conferences = conferences
         self.years = years
@@ -95,6 +97,7 @@ class Scraper:
         self.groups = groups or conferences  # 默认按会议分组
         self.only_accepted = only_accepted
         self.verbose = verbose
+        self.exclude_workshops = exclude_workshops
         
         # 过滤器列表：[(filter_func, args, kwargs), ...]
         self.filters: List[Tuple[Callable, tuple, dict]] = []
@@ -174,6 +177,8 @@ class Scraper:
             print(f"   年份: {', '.join(self.years)}")
             print(f"   关键词: {self.keywords if self.keywords else '(获取所有论文)'}")
             print(f"   过滤器: {len(self.filters)} 个")
+            if self.exclude_workshops:
+                print("   排除: Workshops")
             print("=" * 60)
         
         # Step 1: 获取 venues
@@ -183,7 +188,8 @@ class Scraper:
             self.client,
             self.conferences,
             self.years,
-            verbose=self.verbose
+            verbose=self.verbose,
+            exclude_workshops=self.exclude_workshops
         )
         
         if not venues:
@@ -217,6 +223,10 @@ class Scraper:
         
         # Step 5: 保存 CSV
         if self.fpath:
+            # 确保目录存在
+            import os
+            os.makedirs(os.path.dirname(self.fpath) or '.', exist_ok=True)
+            
             if self.verbose:
                 print(f"\n💾 Step 4: 保存到 {self.fpath}...")
             to_csv(papers_list, self.fpath)
@@ -388,6 +398,7 @@ def create_scraper(
     fields: Optional[List[str]] = None,
     subfields: Optional[Dict[str, List[str]]] = None,
     only_accepted: bool = True,
+    exclude_workshops: bool = True,
 ) -> Scraper:
     """
     便捷函数：创建配置好的 Scraper 实例。
@@ -400,6 +411,7 @@ def create_scraper(
         fields: 要提取的顶层字段
         subfields: 要提取的子字段
         only_accepted: 是否只获取已接受论文
+        exclude_workshops: 是否排除 Workshop（默认 True）
         
     Returns:
         配置好的 Scraper 实例
@@ -436,5 +448,6 @@ def create_scraper(
         extractor=extractor,
         fpath=output_path,
         only_accepted=only_accepted,
+        exclude_workshops=exclude_workshops,
     )
 

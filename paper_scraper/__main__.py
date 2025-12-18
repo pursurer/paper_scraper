@@ -253,7 +253,8 @@ def run_openreview_scrape(
             keywords=keywords,
             extractor=extractor,
             fpath=output,
-            fns=[modify_paper]
+            fns=[modify_paper],
+            exclude_workshops=True  # 默认排除 Workshop
         )
         
         if keywords:
@@ -373,9 +374,19 @@ def main(args=None) -> int:
         print("❌ 需要指定年份 (-y)")
         return 1
     
+    # 路径默认值处理
     if not parsed.output and not parsed.output_dir:
-        print("❌ 需要指定输出文件 (-o) 或输出目录 (--output-dir)")
-        return 1
+        default_dir = 'paper'
+        os.makedirs(default_dir, exist_ok=True)
+        
+        # 如果是单个会议且单个年份，生成具体文件名
+        if len(parsed.conferences) == 1 and len(parsed.years) == 1:
+            conf = parsed.conferences[0]
+            year = parsed.years[0]
+            parsed.output = os.path.join(default_dir, f"{conf.lower()}_{year}.csv")
+        else:
+            # 否则设置为输出目录
+            parsed.output_dir = default_dir
     
     # 判断数据源类型
     source_types = set(get_source_type(c) for c in parsed.conferences)

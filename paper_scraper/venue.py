@@ -88,7 +88,8 @@ def get_all_subgroups(
     client: Any,
     parent_group_id: str,
     years: List[str],
-    verbose: bool = True
+    verbose: bool = True,
+    exclude_workshops: bool = True
 ) -> List[str]:
     """
     获取指定父组的所有子组。
@@ -101,6 +102,7 @@ def get_all_subgroups(
         parent_group_id: 父组的 ID，例如 'AAAI.org/2025/Conference'
         years: 年份列表
         verbose: 是否打印日志
+        exclude_workshops: 是否排除 Workshop
         
     Returns:
         所有子组 ID 列表（包括父组本身）
@@ -151,6 +153,10 @@ def get_all_subgroups(
             if any(year in venue for year in years):
                 # 排除非论文 venue
                 if not any(exclude in venue for exclude in exclude_patterns):
+                    # 排除 Workshop
+                    if exclude_workshops and 'workshop' in venue.lower():
+                        continue
+                        
                     if venue not in all_groups:
                         all_groups.append(venue)
     
@@ -164,7 +170,8 @@ def get_venues(
     conferences: List[str],
     years: List[str],
     expand_subgroups: bool = True,
-    verbose: bool = True
+    verbose: bool = True,
+    exclude_workshops: bool = True
 ) -> List[str]:
     """
     从 OpenReview API v2 获取 venues。
@@ -177,6 +184,7 @@ def get_venues(
         years: 年份列表（如 ['2024', '2025']）
         expand_subgroups: 是否展开子 track（默认 True）
         verbose: 是否打印日志
+        exclude_workshops: 是否排除 Workshop（默认 True）
         
     Returns:
         符合条件的 venue ID 列表
@@ -211,6 +219,9 @@ def get_venues(
             continue
         # 会议过滤
         if filter_by_conference(venue, conferences):
+            # Workshop 过滤
+            if exclude_workshops and 'workshop' in venue.lower():
+                continue
             filtered_venues.append(venue)
     
     if not expand_subgroups:
@@ -229,7 +240,13 @@ def get_venues(
                 print("   正在获取所有子 track/venue...")
             
             try:
-                sub_venues = get_all_subgroups(client, venue, years, verbose)
+                sub_venues = get_all_subgroups(
+                    client, 
+                    venue, 
+                    years, 
+                    verbose,
+                    exclude_workshops=exclude_workshops
+                )
                 
                 # 过滤掉主 venue 本身（已添加），只添加子 venue
                 added_count = 0
