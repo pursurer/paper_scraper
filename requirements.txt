@@ -1,0 +1,29 @@
+# Paper Scraper 依赖
+
+# ============ OpenReview 来源 ============
+# OpenReview API v2 客户端
+openreview-py>=0.6.0
+
+# ============ 网页爬取来源 ============
+# HTML 解析
+beautifulsoup4>=4.9.0
+html5lib>=1.1
+# HTTP 请求
+requests>=2.25.0
+# URL 处理
+python-slugify>=5.0.0
+
+# ============ PDF 提取来源 ============
+# PDF 解析（快速）
+PyMuPDF>=1.18.0
+
+# ============ 通用 ============
+# Python 对象序列化（保存论文数据）
+dill>=0.3.0
+# 模糊字符串匹配（关键词过滤）
+thefuzz>=0.20.0
+# 进度条
+tqdm>=4.60.0
+
+# ============ 开发依赖 ============
+pytest>=7.0.0
