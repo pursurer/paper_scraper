@@ -63,6 +63,16 @@ from .filters import (
     always_match_filter,
 )
 
+# Venue 发现与分组
+from .venue import (
+    get_venues,
+    group_venues,
+    get_all_subgroups,
+    filter_by_year,
+    filter_by_conference,
+    get_venue_info,
+)
+
 # 核心类将在模块迁移后导出
 # from .scraper import Scraper
 
@@ -86,6 +96,13 @@ __all__ = [
     "abstract_filter",
     "satisfies_any_filters",
     "always_match_filter",
+    # Venue 发现与分组
+    "get_venues",
+    "group_venues",
+    "get_all_subgroups",
+    "filter_by_year",
+    "filter_by_conference",
+    "get_venue_info",
     # 待迁移
     # "Scraper",
 ]
