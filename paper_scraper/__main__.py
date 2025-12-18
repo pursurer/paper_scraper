@@ -168,20 +168,83 @@ def run_openreview_scrape(
         print(f"\n🔍 OpenReview 爬取: {', '.join(conferences)} ({', '.join(years)})")
     
     try:
+        # 包含 venue 和 venueid 用于检测 presentation_type
         extractor = Extractor(
             fields=['forum'],
-            subfields={'content': ['title', 'keywords', 'abstract', 'pdf']}
+            subfields={'content': ['title', 'keywords', 'abstract', 'pdf', 'venue', 'venueid', 'presentation_type']}
         )
+        
+        def _get_value(val):
+            """提取 OpenReview API v2 的 {'value': '...'} 格式"""
+            if isinstance(val, dict) and 'value' in val:
+                return val['value']
+            return val if val else ''
+        
+        def _detect_presentation_type(text):
+            """从文本中检测 presentation type"""
+            if not text:
+                return None
+            lowered = str(text).lower()
+            if 'oral' in lowered and 'spotlight' not in lowered:
+                return 'Oral'
+            if 'spotlight' in lowered:
+                return 'Spotlight'
+            if 'poster' in lowered:
+                return 'Poster'
+            return None
         
         # 添加自定义处理函数
         def modify_paper(paper):
             paper.forum = f"https://openreview.net/forum?id={paper.forum}"
+            
+            # 处理 PDF 链接
             if 'pdf' in paper.content:
-                pdf_value = paper.content['pdf']
-                # 处理 OpenReview API v2 的 {'value': '...'} 格式
-                if isinstance(pdf_value, dict) and 'value' in pdf_value:
-                    pdf_value = pdf_value['value']
-                paper.content['pdf'] = f"https://openreview.net{pdf_value}"
+                pdf_value = _get_value(paper.content['pdf'])
+                if pdf_value and not pdf_value.startswith('http'):
+                    paper.content['pdf'] = f"https://openreview.net{pdf_value}"
+                else:
+                    paper.content['pdf'] = pdf_value
+            
+            # 提取 presentation_type (Oral/Spotlight/Poster)
+            presentation_type = 'Poster'  # 默认为 Poster
+            
+            # 方法1: 从 venue 字段检测 (如 "Accept (oral)")
+            venue_text = _get_value(paper.content.get('venue', ''))
+            inferred = _detect_presentation_type(venue_text)
+            if inferred:
+                presentation_type = inferred
+            
+            # 方法2: 从 venueid 字段检测
+            if presentation_type == 'Poster':
+                venueid_text = _get_value(paper.content.get('venueid', ''))
+                inferred = _detect_presentation_type(venueid_text)
+                if inferred:
+                    presentation_type = inferred
+            
+            # 方法3: 从 directReplies 中提取（决策信息）
+            if presentation_type == 'Poster' and hasattr(paper, 'directReplies') and paper.directReplies:
+                for reply in paper.directReplies:
+                    if hasattr(reply, 'content') and isinstance(reply.content, dict):
+                        # 检查常见的字段名
+                        for key in ['decision', 'recommendation', 'presentation_type', 'presentation', 'presentation format']:
+                            if key in reply.content:
+                                inferred = _detect_presentation_type(reply.content[key])
+                                if inferred:
+                                    presentation_type = inferred
+                                    break
+                        if presentation_type != 'Poster':
+                            break
+                        
+                        # 也检查 invitation 名称
+                        if hasattr(reply, 'invitation'):
+                            inferred = _detect_presentation_type(reply.invitation)
+                            if inferred:
+                                presentation_type = inferred
+                                break
+            
+            # 保存 presentation_type 到 content
+            paper.content['presentation_type'] = presentation_type
+            
             return paper
         
         scraper = Scraper(
