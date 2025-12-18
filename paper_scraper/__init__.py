@@ -84,8 +84,8 @@ from .paper import (
     get_paper_ids,
 )
 
-# 核心类将在模块迁移后导出
-# from .scraper import Scraper
+# 核心 Scraper 类
+from .scraper import Scraper, create_scraper
 
 __all__ = [
     "__version__",
@@ -122,6 +122,7 @@ __all__ = [
     "count_papers",
     "flatten_papers",
     "get_paper_ids",
-    # 待迁移
-    # "Scraper",
+    # 核心 Scraper 类
+    "Scraper",
+    "create_scraper",
 ]
