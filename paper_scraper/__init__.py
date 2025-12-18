@@ -87,6 +87,14 @@ from .paper import (
 # 核心 Scraper 类
 from .scraper import Scraper, create_scraper
 
+# 网页爬取（AAAI, IJCAI 等）
+from .web_scraper import (
+    scrape_ijcai,
+    scrape_aaai,
+    scrape_conference,
+    batch_scrape,
+)
+
 __all__ = [
     "__version__",
     "SOURCES",
@@ -125,4 +133,9 @@ __all__ = [
     # 核心 Scraper 类
     "Scraper",
     "create_scraper",
+    # 网页爬取
+    "scrape_ijcai",
+    "scrape_aaai",
+    "scrape_conference",
+    "batch_scrape",
 ]
