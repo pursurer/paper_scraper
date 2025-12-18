@@ -133,17 +133,22 @@ def get_client():
             "openreview-py 未安装。请运行: pip install openreview-py"
         )
     
-    # 尝试从配置或环境变量获取凭证
-    email = os.environ.get("OPENREVIEW_EMAIL")
-    password = os.environ.get("OPENREVIEW_PASSWORD")
+    # 从新配置系统获取凭证
+    email = None
+    password = None
     
+    try:
+        from config import get_config
+        config = get_config()
+        email = config.openreview_email
+        password = config.openreview_password
+    except ImportError:
+        pass
+    
+    # 向后兼容：如果配置系统未设置，尝试环境变量
     if not email or not password:
-        try:
-            from config import EMAIL, PASSWORD
-            email = EMAIL
-            password = PASSWORD
-        except ImportError:
-            pass
+        email = os.environ.get("OPENREVIEW_EMAIL") or email
+        password = os.environ.get("OPENREVIEW_PASSWORD") or password
     
     if not email or not password:
         raise ValueError(

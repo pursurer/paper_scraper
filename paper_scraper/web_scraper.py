@@ -79,8 +79,19 @@ def fetch_page(
     return None
 
 
-def random_delay(min_sec: float = 2.0, max_sec: float = 5.0) -> None:
+def random_delay(min_sec: float = None, max_sec: float = None) -> None:
     """随机延迟，避免请求过快。"""
+    # 尝试从配置获取默认值
+    if min_sec is None or max_sec is None:
+        try:
+            from config import get_config
+            config = get_config()
+            min_sec = min_sec or config.request_delay_min
+            max_sec = max_sec or config.request_delay_max
+        except ImportError:
+            min_sec = min_sec or 2.0
+            max_sec = max_sec or 5.0
+    
     delay = random.uniform(min_sec, max_sec)
     time.sleep(delay)
 
