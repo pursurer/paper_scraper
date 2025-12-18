@@ -1,142 +1,181 @@
-# Paper Scraper - 顶会论文获取工具
+# Paper Scraper 📚
 
-从多个来源批量获取 AI 顶会论文元数据的 Python 工具。
+顶会论文获取工具 - 支持 OpenReview、网页爬取、PDF 提取三种数据来源。
 
-## ✨ 功能特性
+[![Tests](https://img.shields.io/badge/tests-293%20passed-brightgreen)]()
+[![Python](https://img.shields.io/badge/python-3.8+-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-green)]()
 
-- 🎯 支持主流 AI 会议：ICML、ICLR、NeurIPS、AAAI、IJCAI、ACL、EMNLP 等
-- 🔍 关键词过滤：在标题、摘要、关键词中模糊匹配
-- 📊 全量抓取：获取会议所有已接受论文
-- 🏷️ 展示类型：自动识别 Oral/Spotlight/Poster
-- 💾 多种导出格式：CSV（表格）、PKL（原始对象）
+## ✨ 特性
 
-## 📦 数据来源
+- **多数据源支持**：OpenReview API、网页爬取、PDF 提取
+- **统一 CLI 工具**：`python -m paper_scraper`
+- **关键词过滤**：标题/摘要/关键词模糊匹配
+- **批量爬取**：支持多会议多年份
+- **CSV 导出**：统一输出格式
 
-| 来源类型 | 支持会议 | 获取方式 |
-|---------|---------|---------|
-| **OpenReview API** | ICLR, ICML, NeurIPS | 直接调用 API 获取元数据 |
-| **网页爬取** | AAAI, IJCAI, ACL, EMNLP, NAACL, AISTATS | 解析官网 HTML 获取论文列表 |
-| **PDF 提取** | AAMAS | 下载 PDF 后提取 title/abstract/keywords |
+## 📋 支持的会议
+
+| 来源类型 | 支持会议 |
+|---------|---------|
+| **OpenReview** | ICLR, ICML, NeurIPS |
+| **网页爬取** | AAAI, IJCAI, ACL, EMNLP, NAACL, AISTATS |
+| **PDF 提取** | AAMAS |
 
 ## 🚀 快速开始
 
 ### 安装
 
 ```bash
-# 克隆项目
-git clone <repo-url>
-cd 论文获取
+git clone https://github.com/pursurer/paper_scraper.git
+cd paper_scraper
 
 # 创建虚拟环境
 python -m venv venv
-source venv/bin/activate  # macOS/Linux
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 安装依赖
 pip install -r requirements.txt
 ```
 
-### 配置
+### 配置（仅 OpenReview 来源需要）
 
 ```bash
-# 复制配置模板
-cp config/config.example.py config/config.py
-
-# 编辑配置文件，填入 OpenReview 账号（仅 OpenReview 来源需要）
-```
-
-或使用环境变量：
-
-```bash
+# 方式一：环境变量
 export OPENREVIEW_EMAIL="your_email@example.com"
 export OPENREVIEW_PASSWORD="your_password"
+
+# 方式二：配置文件
+cp config/config.example.py config/config.py
+# 编辑 config.py 填入凭证
 ```
 
-### 使用
+## 💻 使用方法
+
+### 命令行 (CLI)
 
 ```bash
-# 抓取 ICLR 2024 所有论文（OpenReview）
-python scripts/scrape.py --conference ICLR --years 2024
+# 列出支持的会议
+python -m paper_scraper --list-conferences
 
-# 抓取 AAAI 2025（网页爬取）
-python scripts/scrape.py --conference AAAI --years 2025
+# 爬取 IJCAI 2024 (网页爬取)
+python -m paper_scraper -c IJCAI -y 2024 -o ijcai_2024.csv
 
-# 指定输出目录
-python scripts/scrape.py --conference ICML --years 2024 --output-dir ./papers
+# 爬取 ICLR 2024 (OpenReview)
+python -m paper_scraper -c ICLR -y 2024 -o iclr_2024.csv
+
+# 批量爬取多会议
+python -m paper_scraper -c ICLR ICML NeurIPS -y 2023 2024 --output-dir ./output
+
+# 带关键词过滤
+python -m paper_scraper -c ICLR -y 2024 -k "reinforcement learning" -o rl_papers.csv
+
+# PDF 提取 (AAMAS)
+python -m paper_scraper --pdf-dir ./aamas2025 -y 2025 -o aamas_2025.csv
 ```
 
-## 📁 项目结构
-
-```
-论文获取/
-├── paper_scraper/          # 核心 Python 包
-│   ├── __init__.py         # 包入口
-│   ├── scraper.py          # Scraper 主类
-│   ├── paper.py            # 论文获取（OpenReview）
-│   ├── venue.py            # Venue 处理
-│   ├── extractor.py        # 字段提取
-│   ├── filters.py          # 关键词过滤
-│   ├── web_scraper.py      # 网页爬取（AAAI/IJCAI等）
-│   ├── pdf_extractor.py    # PDF 元数据提取（AAMAS）
-│   └── utils.py            # 工具函数
-│
-├── scripts/                # 使用脚本
-├── tests/                  # 测试文件
-├── config/                 # 配置目录
-│
-├── requirements.txt        # Python 依赖
-└── README.md              # 本文件
-```
-
-## 📖 API 使用
+### Python API
 
 ```python
-from paper_scraper import Scraper, Extractor
-from paper_scraper.filters import title_filter, abstract_filter
+# ============ OpenReview 来源 ============
+from paper_scraper import Scraper, Extractor, title_filter, abstract_filter
 
-# 配置提取器
 extractor = Extractor(
     fields=['forum'],
-    subfields={'content': ['title', 'keywords', 'abstract', 'pdf']}
+    subfields={'content': ['title', 'abstract', 'keywords', 'pdf']}
 )
 
-# 创建爬虫（OpenReview 来源）
 scraper = Scraper(
     conferences=['ICLR'],
     years=['2024'],
-    keywords=['reinforcement learning'],  # 可选：关键词过滤
+    keywords=['reinforcement learning'],
     extractor=extractor,
-    fpath='output.csv',
-    only_accepted=True
+    fpath='iclr_2024.csv'
 )
-
-# 添加过滤器（可选）
 scraper.add_filter(title_filter)
 scraper.add_filter(abstract_filter)
-
-# 运行
 scraper()
+
+# ============ 网页爬取来源 ============
+from paper_scraper import scrape_ijcai, scrape_aaai, scrape_acl, batch_scrape
+
+# 单会议
+papers = scrape_ijcai(2024, output_path='ijcai_2024.csv')
+papers = scrape_aaai(2025, output_path='aaai_2025.csv')
+papers = scrape_acl(2023, output_path='acl_2023.csv')
+
+# 批量
+results = batch_scrape(['IJCAI', 'AAAI'], [2023, 2024], output_dir='./output')
+
+# ============ PDF 提取 ============
+from paper_scraper import extract_aamas_metadata
+
+papers = extract_aamas_metadata('./aamas2025/', 2025, output_path='aamas_2025.csv')
 ```
 
-## 📋 CSV 输出格式
+## 📁 输出格式
+
+CSV 文件包含以下字段：
 
 | 字段 | 说明 |
 |------|------|
-| `id` | 唯一标识 |
+| `id` | 唯一标识 (会议名_年份_序号) |
 | `title` | 论文标题 |
-| `keywords` | 关键词列表 |
+| `keywords` | 关键词 |
 | `abstract` | 摘要 |
 | `pdf` | PDF 链接 |
 | `forum` | 论文页面链接 |
 | `year` | 年份 |
 | `presentation_type` | 展示类型 (Oral/Spotlight/Poster) |
 
-## 🧪 测试
+## ⚙️ 配置选项
+
+支持环境变量配置：
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `OPENREVIEW_EMAIL` | OpenReview 邮箱 | - |
+| `OPENREVIEW_PASSWORD` | OpenReview 密码 | - |
+| `PAPER_SCRAPER_DELAY_MIN` | 最小请求延迟(秒) | 2.0 |
+| `PAPER_SCRAPER_DELAY_MAX` | 最大请求延迟(秒) | 5.0 |
+| `PAPER_SCRAPER_TIMEOUT` | 请求超时(秒) | 30 |
+| `PAPER_SCRAPER_RETRIES` | 重试次数 | 3 |
+| `PAPER_SCRAPER_OUTPUT_DIR` | 输出目录 | ./output |
+
+## 🧪 运行测试
 
 ```bash
 # 运行所有测试
 python -m pytest tests/ -v
+
+# 运行单个测试文件
+python -m pytest tests/test_web_scraper.py -v
 ```
 
-## 📝 License
+## 📦 项目结构
+
+```
+paper_scraper/
+├── paper_scraper/          # 核心包
+│   ├── __init__.py         # 包入口
+│   ├── __main__.py         # CLI 入口
+│   ├── scraper.py          # Scraper 主类
+│   ├── extractor.py        # 字段提取器
+│   ├── filters.py          # 关键词过滤器
+│   ├── venue.py            # Venue 处理
+│   ├── paper.py            # 论文获取
+│   ├── web_scraper.py      # 网页爬取
+│   ├── pdf_extractor.py    # PDF 提取
+│   └── utils.py            # 工具函数
+├── config/                 # 配置
+├── tests/                  # 测试
+└── requirements.txt        # 依赖
+```
+
+## 📄 License
 
 MIT License
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！

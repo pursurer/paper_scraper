@@ -1,257 +1,195 @@
-# AGENTS.md - AI Agent 开发指南
+# AI Agent 开发指南
 
-> 本文件为 AI Agent（如 Cursor、GitHub Copilot）提供项目上下文和开发规范。
+## 项目概述
 
----
+`paper_scraper` 是一个顶会论文获取工具，支持三种数据来源：
+- **OpenReview API**: ICLR, ICML, NeurIPS
+- **网页爬取**: AAAI, IJCAI, ACL, EMNLP, NAACL, AISTATS
+- **PDF 提取**: AAMAS
 
-## 📁 项目结构 (Project Structure)
+## 项目结构
 
 ```
 论文获取/
 ├── paper_scraper/          # 核心 Python 包
-│   ├── __init__.py         # 包入口，暴露公开 API
+│   ├── __init__.py         # 包入口，定义 SOURCES 和导出
+│   ├── __main__.py         # CLI 入口
 │   ├── scraper.py          # Scraper 主类（OpenReview）
-│   ├── paper.py            # 论文获取逻辑
-│   ├── venue.py            # Venue 发现与分组
 │   ├── extractor.py        # 字段提取器
 │   ├── filters.py          # 关键词过滤器
-│   ├── web_scraper.py      # 网页爬取（AAAI/IJCAI/ACL等）
-│   ├── pdf_extractor.py    # PDF 元数据提取（AAMAS）
-│   └── utils.py            # 工具函数（API客户端、CSV导出、重试机制）
+│   ├── venue.py            # Venue 处理
+│   ├── paper.py            # 论文获取
+│   ├── web_scraper.py      # 网页爬取
+│   ├── pdf_extractor.py    # PDF 提取
+│   └── utils.py            # 工具函数
 │
-├── scripts/                # 使用脚本
-│   ├── scrape.py           # 统一 CLI 入口
-│   └── batch_scrape.py     # 批量抓取脚本
-│
-├── tests/                  # 测试文件
 ├── config/                 # 配置目录
+│   ├── __init__.py         # Config 类
+│   └── config.example.py   # 配置模板
 │
-├── 文件结构.md              # 详细的文件结构文档
-├── 项目指南.md              # TDD 行动指南（查看当前任务）
-└── AGENTS.md               # 本文件
+├── tests/                  # 测试目录 (293 个测试)
+│   ├── test_*.py
+│   └── __init__.py
+│
+├── 项目指南.md              # TDD 行动指南
+├── 文件结构.md              # 文件结构参考
+├── README.md               # 项目说明
+└── requirements.txt        # 依赖
 ```
 
----
+## 开发环境
 
-## 📦 数据来源架构 (Data Sources)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Paper Scraper                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ OpenReview  │  │ Web Scrape  │  │ PDF Extract │         │
-│  │    API      │  │   (HTML)    │  │  (AAMAS)    │         │
-│  ├─────────────┤  ├─────────────┤  ├─────────────┤         │
-│  │ • ICLR      │  │ • AAAI      │  │ • AAMAS     │         │
-│  │ • ICML      │  │ • IJCAI     │  │             │         │
-│  │ • NeurIPS   │  │ • ACL       │  │             │         │
-│  │             │  │ • EMNLP     │  │             │         │
-│  │             │  │ • NAACL     │  │             │         │
-│  │             │  │ • AISTATS   │  │             │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-│                           │                                 │
-│                           ▼                                 │
-│                  ┌─────────────────┐                        │
-│                  │  Unified CSV    │                        │
-│                  │  Output Format  │                        │
-│                  └─────────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🛠️ 开发环境 (Dev Environment)
-
-### 环境设置
 ```bash
-cd 论文获取/
-python -m venv venv
-source venv/bin/activate  # macOS/Linux
-pip install -r requirements.txt
-```
+# 进入项目
+cd 论文获取
 
-### 配置凭证（仅 OpenReview 来源需要）
-```bash
-cp config/config.example.py config/config.py
-# 编辑 config/config.py，填入 OpenReview 账号
-```
-
-### 依赖说明
-| 包名 | 用途 | 来源 |
-|------|------|------|
-| `openreview-py` | OpenReview API v2 客户端 | OpenReview |
-| `beautifulsoup4` | HTML 解析 | Web Scrape |
-| `requests` | HTTP 请求 | Web Scrape |
-| `PyMuPDF` | PDF 解析 | PDF Extract |
-| `dill` | 序列化 Python 对象 | 通用 |
-| `thefuzz` | 模糊字符串匹配 | 通用 |
-
-### 常用命令
-```bash
 # 激活虚拟环境
-source venv/bin/activate
+source venv/bin/activate  # 或 . venv/bin/activate
 
-# 安装/更新依赖
+# 安装依赖
 pip install -r requirements.txt
-
-# 运行单会议抓取
-python scripts/scrape.py --conference ICLR --years 2024
 
 # 运行测试
-python -m pytest tests/
+python -m pytest tests/ -v
 ```
 
----
+## 测试规范
 
-## 🧪 测试说明 (Testing Instructions)
+- 使用 `pytest` 框架
+- 测试文件: `tests/test_*.py`
+- Mock 外部依赖（网络请求、API 调用）
+- 每个模块对应一个测试文件
 
-### 运行测试
 ```bash
 # 运行所有测试
 python -m pytest tests/ -v
 
-# 运行特定测试文件
-python -m pytest tests/test_scraper.py -v
+# 运行单个测试
+python -m pytest tests/test_web_scraper.py -v
 
-# 运行特定测试函数
-python -m pytest tests/test_scraper.py::test_venue_discovery -v
+# 运行特定测试类
+python -m pytest tests/test_cli.py::TestMain -v
 ```
 
-### 测试规范
-- 测试文件命名：`test_<module>.py`
-- 测试函数命名：`test_<功能描述>`
-- 为修改的代码添加或更新测试
-- 提交前确保所有测试通过
+## 代码风格
 
-### Mock API/网络请求
+- **命名**: `snake_case` (函数/变量), `PascalCase` (类)
+- **文档**: 每个模块/类/函数都有 docstring
+- **类型**: 使用 type hints
+- **导入**: 相对导入 `from .utils import ...`
+
+## 核心模块说明
+
+### scraper.py - OpenReview 来源
 ```python
-# 测试时使用 mock 避免真实 API/网络调用
-from unittest.mock import Mock, patch
-
-@patch('paper_scraper.utils.get_client')
-def test_scraper(mock_client):
-    mock_client.return_value = Mock()
-    # ...测试代码
+class Scraper:
+    def __init__(self, conferences, years, keywords, extractor, fpath, ...)
+    def add_filter(self, filter_fn)
+    def scrape(self)
 ```
 
----
-
-## 📝 代码规范 (Code Style)
-
-### 命名约定
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 函数/变量 | `snake_case` | `get_papers()`, `venue_list` |
-| 类名 | `PascalCase` | `Scraper`, `Extractor` |
-| 常量 | `UPPER_CASE` | `MAX_RETRIES`, `API_BASE_URL` |
-| 私有方法 | `_snake_case` | `_parse_venue()` |
-
-### 文档字符串
+### web_scraper.py - 网页爬取来源
 ```python
-def get_papers(client, venue_id: str, only_accepted: bool = True) -> List[dict]:
-    """
-    从 OpenReview API 获取论文列表。
-    
-    Args:
-        client: OpenReview API v2 客户端
-        venue_id: Venue 标识符，如 'ICLR.cc/2024/Conference'
-        only_accepted: 是否只获取已接受论文
-        
-    Returns:
-        论文字典列表，包含 title, abstract, forum 等字段
-        
-    Raises:
-        OpenReviewError: API 调用失败时抛出
-    """
+scrape_ijcai(year, output_path, verbose)
+scrape_aaai(year, output_path, verbose)
+scrape_aistats(year, output_path, verbose)
+scrape_acl(year, output_path, verbose)
+scrape_emnlp(year, output_path, verbose)
+scrape_naacl(year, output_path, verbose)
+scrape_conference(conference, year, output_path, verbose)
+batch_scrape(conferences, years, output_dir, verbose)
 ```
 
-### 状态输出
-使用 emoji 表示状态，保持输出一致：
+### pdf_extractor.py - PDF 提取来源
 ```python
-print("✅ 成功")
-print("❌ 失败")
-print("⚠️  警告")
-print("📊 统计")
-print("🔍 搜索中...")
+extract_text_from_pdf(pdf_path)
+extract_abstract(text)
+extract_keywords(text)
+extract_aamas_metadata(pdf_dir, year, output_path, verbose)
 ```
 
----
+### config/__init__.py - 配置系统
+```python
+class Config:
+    openreview_email
+    openreview_password
+    request_delay_min/max
+    request_timeout
+    request_retries
+    output_dir
+    verbose
+    has_credentials
 
-## 🔧 重要上下文 (Key Context)
+get_config() -> Config
+reset_config()
+```
 
-### 三种数据来源
+## 数据来源架构
 
-#### 1. OpenReview API (ICLR, ICML, NeurIPS)
-- 基础 URL: `https://api2.openreview.net`
-- 需要账号登录获取完整数据
-- 有速率限制，需要重试机制（429 错误）
-- Venue 格式: `ICLR.cc/2024/Conference`
+```
+┌─────────────────┐     ┌──────────────────┐     ┌───────────────┐
+│  OpenReview API │     │   Web Scraping   │     │  PDF Extract  │
+│  (ICLR,ICML...) │     │ (AAAI,IJCAI...)  │     │   (AAMAS)     │
+└────────┬────────┘     └────────┬─────────┘     └───────┬───────┘
+         │                       │                       │
+         │   Scraper             │   scrape_*()          │   extract_*()
+         │   Extractor           │   fetch_page()        │   process_pdf()
+         │   Venue               │   BeautifulSoup       │   PyMuPDF/pdfminer
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                         ┌───────▼───────┐
+                         │  统一 CSV 输出 │
+                         │  to_csv()     │
+                         └───────────────┘
+```
 
-#### 2. 网页爬取 (AAAI, IJCAI, ACL, EMNLP, NAACL, AISTATS)
-- 从各会议官网解析 HTML
-- 使用 BeautifulSoup 提取论文信息
-- 不同年份网页结构可能不同，需要适配
-- 参考实现: `AAMAS论文获取/paper_downloader/code/paper_downloader_*.py`
+## Git 提交规范
 
-#### 3. PDF 提取 (AAMAS)
-- 先下载 PDF 文件
-- 使用 PyMuPDF 从 PDF 提取 title, abstract, keywords
-- 转换为统一 CSV 格式
-- 参考实现: `AAMAS论文获取/paper_downloader/code/extract_aamas_metadata.py`
+```
+feat: 新功能
+fix: 修复 bug
+docs: 文档更新
+test: 测试相关
+refactor: 重构
+style: 格式调整
+```
 
-### 统一输出格式
-| 字段 | 说明 |
+## 任务执行规范
+
+1. **阅读项目指南.md** 了解当前任务
+2. **参考文件结构.md** 了解旧项目实现
+3. **TDD 流程**: 写测试 → 实现 → 通过测试
+4. **提交**: 完成任务后 git commit + push
+
+## 重要文件
+
+| 文件 | 用途 |
 |------|------|
-| `id` | 会议名_序号 (例: iclr_2024_1) |
-| `title` | 论文标题 |
-| `keywords` | 关键词列表 |
-| `abstract` | 摘要 |
-| `pdf` | PDF 链接 |
-| `forum` | 论文页面链接 |
-| `year` | 年份 |
-| `presentation_type` | 展示类型 (Oral/Spotlight/Poster) |
+| `项目指南.md` | TDD 行动指南，任务追踪 |
+| `文件结构.md` | 旧项目参考 |
+| `paper_scraper/__init__.py` | 包入口，SOURCES 定义 |
+| `config/__init__.py` | 配置系统 |
 
----
+## 常见问题
 
-## 📋 任务执行规范 (Task Execution)
+### Q: 如何添加新会议支持？
+1. 确定数据来源类型
+2. 在对应模块添加爬取函数
+3. 更新 `__init__.py` 的 SOURCES 和导出
+4. 更新 `__main__.py` 的 scrapers 字典
+5. 添加测试用例
 
-### 执行前
-1. **阅读 `项目指南.md`** - 了解当前原子任务
-2. **阅读 `文件结构.md`** - 了解项目整体架构
-3. **检查 Out-of-scope** - 不要超出任务边界
+### Q: 如何调试网页爬取？
+```python
+from paper_scraper.web_scraper import fetch_page
+html = fetch_page('https://...', verbose=True)
+print(html[:1000])  # 查看 HTML 结构
+```
 
-### 执行中
-1. 遵循 TDD：先写测试，再实现功能
-2. 小步提交，每个提交只做一件事
-3. 保持代码风格一致
-
-### 执行后
-1. 运行测试确保通过
-2. **更新 `项目指南.md`**：
-   - 将完成的任务移到"TDD 演进日志"
-   - 更新"宏观项目蓝图"进度
-   - 为下一个任务编写规格书
-
----
-
-## 🚫 禁止事项 (Do NOT)
-
-- ❌ 不要修改原项目（`Openreview论文获取方案/`、`AAMAS论文获取/`）- 只读参考
-- ❌ 不要硬编码凭证
-- ❌ 不要在代码中使用 `print` 调试后忘记删除
-- ❌ 不要跳过测试
-- ❌ 不要在一次提交中做多件事
-- ❌ 不要使用 `*` 通配符导入
-
----
-
-## ✅ 检查清单 (Checklist)
-
-提交前确认：
-- [ ] 代码符合命名规范
-- [ ] 添加/更新了相关测试
-- [ ] 测试全部通过
-- [ ] 文档已更新（如有需要）
-- [ ] `项目指南.md` 已更新
+### Q: 如何测试 PDF 提取？
+```python
+from paper_scraper.pdf_extractor import process_pdf
+result = process_pdf('./test.pdf')
+print(result)
+```
