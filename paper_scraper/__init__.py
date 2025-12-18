@@ -39,20 +39,39 @@ SOURCES = {
     'pdf_extract': ['AAMAS'],
 }
 
+# 工具函数
+from .utils import (
+    retry_with_backoff,
+    safe_api_call,
+    get_client,
+    papers_to_list,
+    to_csv,
+    save_papers,
+    load_papers,
+    DEFAULT_CSV_FIELDS,
+)
+
 # 核心类将在模块迁移后导出
 # from .scraper import Scraper
 # from .extractor import Extractor
 # from .filters import title_filter, keywords_filter, abstract_filter
-# from .utils import save_papers, load_papers
 
 __all__ = [
     "__version__",
     "SOURCES",
+    # 工具函数
+    "retry_with_backoff",
+    "safe_api_call",
+    "get_client",
+    "papers_to_list",
+    "to_csv",
+    "save_papers",
+    "load_papers",
+    "DEFAULT_CSV_FIELDS",
+    # 待迁移
     # "Scraper",
     # "Extractor", 
     # "title_filter",
     # "keywords_filter",
     # "abstract_filter",
-    # "save_papers",
-    # "load_papers",
 ]
