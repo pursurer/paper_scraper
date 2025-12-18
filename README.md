@@ -128,6 +128,11 @@ CSV 文件包含以下字段：
 | `year` | 年份 |
 | `presentation_type` | 展示类型 (Oral/Spotlight/Poster) |
 
+> **注意**：不同来源的字段完整性有所不同：
+> - **OpenReview**：所有字段完整，包含 presentation_type
+> - **网页爬取**：部分会议可能缺少 abstract/keywords
+> - **PDF 提取**：从 PDF 中提取 abstract/keywords
+
 ## ⚙️ 配置选项
 
 支持环境变量配置：
