@@ -105,6 +105,19 @@ from .web_scraper import (
     batch_scrape,
 )
 
+# PDF 元数据提取（AAMAS）
+from .pdf_extractor import (
+    extract_text_from_pdf,
+    extract_abstract,
+    extract_keywords,
+    extract_title,
+    process_pdf,
+    process_pdf_directory,
+    extract_aamas_metadata,
+    process_from_index,
+    is_pdf_available,
+)
+
 __all__ = [
     "__version__",
     "SOURCES",
@@ -154,4 +167,14 @@ __all__ = [
     "scrape_acl_anthology",
     "scrape_conference",
     "batch_scrape",
+    # PDF 提取
+    "extract_text_from_pdf",
+    "extract_abstract",
+    "extract_keywords",
+    "extract_title",
+    "process_pdf",
+    "process_pdf_directory",
+    "extract_aamas_metadata",
+    "process_from_index",
+    "is_pdf_available",
 ]
