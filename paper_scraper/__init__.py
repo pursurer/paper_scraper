@@ -73,6 +73,17 @@ from .venue import (
     get_venue_info,
 )
 
+# 论文获取
+from .paper import (
+    get_venue_papers,
+    get_grouped_venue_papers,
+    get_papers,
+    deduplicate_papers,
+    count_papers,
+    flatten_papers,
+    get_paper_ids,
+)
+
 # 核心类将在模块迁移后导出
 # from .scraper import Scraper
 
@@ -103,6 +114,14 @@ __all__ = [
     "filter_by_year",
     "filter_by_conference",
     "get_venue_info",
+    # 论文获取
+    "get_venue_papers",
+    "get_grouped_venue_papers",
+    "get_papers",
+    "deduplicate_papers",
+    "count_papers",
+    "flatten_papers",
+    "get_paper_ids",
     # 待迁移
     # "Scraper",
 ]
