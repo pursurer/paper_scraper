@@ -177,7 +177,11 @@ def run_openreview_scrape(
         def modify_paper(paper):
             paper.forum = f"https://openreview.net/forum?id={paper.forum}"
             if 'pdf' in paper.content:
-                paper.content['pdf'] = f"https://openreview.net{paper.content['pdf']}"
+                pdf_value = paper.content['pdf']
+                # 处理 OpenReview API v2 的 {'value': '...'} 格式
+                if isinstance(pdf_value, dict) and 'value' in pdf_value:
+                    pdf_value = pdf_value['value']
+                paper.content['pdf'] = f"https://openreview.net{pdf_value}"
             return paper
         
         scraper = Scraper(

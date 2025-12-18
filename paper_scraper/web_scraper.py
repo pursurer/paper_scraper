@@ -290,7 +290,15 @@ def _get_aaai_track_urls(year: int, verbose: bool = True) -> Dict[str, str]:
         base_url = 'https://ojs.aaai.org/index.php/AAAI/issue/archive'
         headers = {
             'User-Agent': get_random_user_agent(),
-            'Referer': 'https://ojs.aaai.org',
+            'Referer': 'https://ojs.aaai.org/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
         }
         
         html = fetch_page(base_url, headers=headers, verbose=verbose)
