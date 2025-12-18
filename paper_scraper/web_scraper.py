@@ -620,9 +620,20 @@ def _parse_acl_anthology_page(
     year: int,
     verbose: bool = True
 ) -> List[Dict[str, Any]]:
-    """解析 ACL Anthology 页面。"""
+    """解析 ACL Anthology 页面，包含摘要提取。"""
     soup = BeautifulSoup(html, 'html.parser')
     papers = []
+    
+    # 预先收集所有摘要 div（id 格式: abstract-2024--acl-long--1）
+    abstract_divs = {}
+    for div in soup.find_all('div', id=lambda x: x and x.startswith('abstract-')):
+        abstract_id = div.get('id', '')
+        # 提取摘要文本
+        card_body = div.find('div', class_='card-body')
+        if card_body:
+            abstract_divs[abstract_id] = card_body.get_text(strip=True)
+        else:
+            abstract_divs[abstract_id] = div.get_text(strip=True)
     
     # 查找所有论文条目
     # ACL Anthology 结构: <p class="d-sm-flex">
@@ -639,7 +650,6 @@ def _parse_acl_anthology_page(
                 continue
             
             # 第一个 span 是按钮行，第二个是标题
-            # 但有些条目只有一个 span（如标题行）
             title_span = None
             for span in spans:
                 # 跳过按钮行（包含 list-button-row class）
@@ -663,21 +673,28 @@ def _parse_acl_anthology_page(
             if not title or len(title) < 10:
                 continue
             
-            # 查找 PDF 链接
+            # 查找 PDF 链接和摘要链接
             pdf_url = ''
+            abstract_id = ''
             for link in entry.find_all('a'):
                 href = link.get('href', '')
                 if href.endswith('.pdf'):
-                    # PDF 链接可能是完整 URL 或相对 URL
+                    # PDF 链接
                     if href.startswith('http'):
                         pdf_url = href
                     else:
                         pdf_url = f'https://aclanthology.org{href}'
-                    break
+                elif href.startswith('#abstract-'):
+                    # 摘要链接，格式: #abstract-2024--acl-long--1
+                    abstract_id = href[1:]  # 去掉 #
+            
+            # 从预收集的摘要中获取
+            abstract = abstract_divs.get(abstract_id, '')
             
             papers.append({
                 'title': title,
                 'pdf_url': pdf_url,
+                'abstract': abstract,
                 'group': '',
                 'year': str(year),
                 'conference': conference,
@@ -739,8 +756,8 @@ def _save_papers_csv(
             'group': p.get('group', ''),
             'year': p.get('year', ''),
             'conference': p.get('conference', ''),
-            'keywords': '',
-            'abstract': '',
+            'keywords': p.get('keywords', ''),
+            'abstract': p.get('abstract', ''),  # 保留摘要
         })
     
     to_csv(papers_for_csv, output_path)
