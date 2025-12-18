@@ -625,29 +625,55 @@ def _parse_acl_anthology_page(
     papers = []
     
     # 查找所有论文条目
-    # ACL Anthology 使用 <p class="d-sm-flex align-items-stretch"> 包装论文
+    # ACL Anthology 结构: <p class="d-sm-flex">
+    #   <span class="d-block mr-2 text-nowrap list-button-row">pdf bib abs</span>
+    #   <span class="d-block">论文标题</span>
+    # </p>
     paper_entries = soup.find_all('p', {'class': 'd-sm-flex'})
     
     for entry in paper_entries:
         try:
-            # 查找标题链接
-            title_span = entry.find('span', {'class': 'd-block'})
+            # 查找所有 span.d-block
+            spans = entry.find_all('span', {'class': 'd-block'})
+            if len(spans) < 2:
+                continue
+            
+            # 第一个 span 是按钮行，第二个是标题
+            # 但有些条目只有一个 span（如标题行）
+            title_span = None
+            for span in spans:
+                # 跳过按钮行（包含 list-button-row class）
+                span_class = span.get('class', [])
+                if 'list-button-row' in span_class or 'text-nowrap' in span_class:
+                    continue
+                # 跳过小图标 span
+                if 'mr-1' in span_class or 'align-middle' in span_class:
+                    continue
+                # 这应该是标题 span
+                title_span = span
+                break
+            
             if not title_span:
                 continue
             
-            title_link = title_span.find('a', {'class': 'align-middle'})
-            if not title_link:
+            # 获取标题文本
+            title = title_span.get_text(strip=True)
+            
+            # 跳过非论文条目
+            if not title or len(title) < 10:
                 continue
             
-            title = title_link.get_text(strip=True)
-            paper_url = title_link.get('href', '')
-            
-            # PDF 链接通常是 paper_url + .pdf
+            # 查找 PDF 链接
             pdf_url = ''
-            if paper_url:
-                # 从论文页面 URL 构造 PDF URL
-                # https://aclanthology.org/2023.acl-long.1/ -> https://aclanthology.org/2023.acl-long.1.pdf
-                pdf_url = f'https://aclanthology.org{paper_url}'.rstrip('/') + '.pdf'
+            for link in entry.find_all('a'):
+                href = link.get('href', '')
+                if href.endswith('.pdf'):
+                    # PDF 链接可能是完整 URL 或相对 URL
+                    if href.startswith('http'):
+                        pdf_url = href
+                    else:
+                        pdf_url = f'https://aclanthology.org{href}'
+                    break
             
             papers.append({
                 'title': title,
