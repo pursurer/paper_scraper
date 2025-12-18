@@ -51,9 +51,11 @@ from .utils import (
     DEFAULT_CSV_FIELDS,
 )
 
+# 字段提取器
+from .extractor import Extractor
+
 # 核心类将在模块迁移后导出
 # from .scraper import Scraper
-# from .extractor import Extractor
 # from .filters import title_filter, keywords_filter, abstract_filter
 
 __all__ = [
@@ -68,9 +70,10 @@ __all__ = [
     "save_papers",
     "load_papers",
     "DEFAULT_CSV_FIELDS",
+    # 字段提取器
+    "Extractor",
     # 待迁移
     # "Scraper",
-    # "Extractor", 
     # "title_filter",
     # "keywords_filter",
     # "abstract_filter",
