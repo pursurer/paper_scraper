@@ -141,10 +141,18 @@ class TestMain:
         result = main(['-c', 'ICLR', '-o', 'test.csv'])
         assert result == 1
     
-    def test_missing_output(self):
-        """测试缺少输出参数"""
-        result = main(['-c', 'ICLR', '-y', '2024'])
-        assert result == 1
+    def test_default_output(self):
+        """测试默认输出路径"""
+        # 模拟 run_openreview_scrape 返回成功
+        with patch('paper_scraper.__main__.run_openreview_scrape', return_value=0) as mock_run:
+            # 模拟 os.makedirs 避免实际创建目录
+            with patch('os.makedirs'):
+                result = main(['-c', 'ICLR', '-y', '2024'])
+                assert result == 0
+                
+                # 检查是否调用了 run_openreview_scrape，且 output 参数包含 paper/
+                args = mock_run.call_args
+                assert 'paper/iclr_2024.csv' in args[0][3] or args[0][3].endswith('iclr_2024.csv')
     
     def test_unknown_conference(self):
         """测试未知会议"""

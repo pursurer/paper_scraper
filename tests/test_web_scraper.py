@@ -337,11 +337,20 @@ class TestParseAclAnthologyPage:
     
     def test_parse_paper_entries(self):
         """测试解析论文条目"""
+        # 更新 HTML 结构以匹配新逻辑：
+        # 1. 需要两个 span.d-block
+        # 2. 标题长度 > 10
+        # 3. 包含 PDF 链接
         mock_html = '''
         <html><body>
             <p class="d-sm-flex align-items-stretch">
+                <span class="d-block mr-2 text-nowrap list-button-row">
+                    <a href="/2023.acl-long.1.pdf">pdf</a>
+                </span>
                 <span class="d-block">
-                    <a class="align-middle" href="/2023.acl-long.1/">Paper Title 1</a>
+                    <a class="align-middle" href="/2023.acl-long.1/">
+                        <strong>Paper Title With Enough Length</strong>
+                    </a>
                 </span>
             </p>
         </body></html>
@@ -350,7 +359,7 @@ class TestParseAclAnthologyPage:
         papers = _parse_acl_anthology_page(mock_html, 'ACL', 2023, verbose=False)
         
         assert len(papers) == 1
-        assert papers[0]['title'] == 'Paper Title 1'
+        assert papers[0]['title'] == 'Paper Title With Enough Length'
         assert papers[0]['conference'] == 'ACL'
         assert '.pdf' in papers[0]['pdf_url']
     

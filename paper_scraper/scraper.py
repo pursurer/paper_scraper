@@ -71,6 +71,7 @@ class Scraper:
         client: Any = None,
         verbose: bool = True,
         exclude_workshops: bool = True,
+        main_track_only: bool = True,
     ):
         """
         初始化 Scraper。
@@ -87,6 +88,7 @@ class Scraper:
             client: OpenReview API client（可选，默认自动创建）
             verbose: 是否打印日志（默认 True）
             exclude_workshops: 是否排除 Workshop（默认 True）
+            main_track_only: 是否只获取主会论文（默认 True）
         """
         self.conferences = conferences
         self.years = years
@@ -98,6 +100,7 @@ class Scraper:
         self.only_accepted = only_accepted
         self.verbose = verbose
         self.exclude_workshops = exclude_workshops
+        self.main_track_only = main_track_only
         
         # 过滤器列表：[(filter_func, args, kwargs), ...]
         self.filters: List[Tuple[Callable, tuple, dict]] = []
@@ -179,6 +182,8 @@ class Scraper:
             print(f"   过滤器: {len(self.filters)} 个")
             if self.exclude_workshops:
                 print("   排除: Workshops")
+            if self.main_track_only:
+                print("   排除: 非主会 Tracks")
             print("=" * 60)
         
         # Step 1: 获取 venues
@@ -189,7 +194,8 @@ class Scraper:
             self.conferences,
             self.years,
             verbose=self.verbose,
-            exclude_workshops=self.exclude_workshops
+            exclude_workshops=self.exclude_workshops,
+            main_track_only=self.main_track_only
         )
         
         if not venues:
@@ -399,6 +405,7 @@ def create_scraper(
     subfields: Optional[Dict[str, List[str]]] = None,
     only_accepted: bool = True,
     exclude_workshops: bool = True,
+    main_track_only: bool = True,
 ) -> Scraper:
     """
     便捷函数：创建配置好的 Scraper 实例。
@@ -412,6 +419,7 @@ def create_scraper(
         subfields: 要提取的子字段
         only_accepted: 是否只获取已接受论文
         exclude_workshops: 是否排除 Workshop（默认 True）
+        main_track_only: 是否只获取主会论文（默认 True）
         
     Returns:
         配置好的 Scraper 实例
@@ -449,5 +457,6 @@ def create_scraper(
         fpath=output_path,
         only_accepted=only_accepted,
         exclude_workshops=exclude_workshops,
+        main_track_only=main_track_only,
     )
 

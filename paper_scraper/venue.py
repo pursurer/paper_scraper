@@ -171,7 +171,8 @@ def get_venues(
     years: List[str],
     expand_subgroups: bool = True,
     verbose: bool = True,
-    exclude_workshops: bool = True
+    exclude_workshops: bool = True,
+    main_track_only: bool = True
 ) -> List[str]:
     """
     从 OpenReview API v2 获取 venues。
@@ -185,15 +186,10 @@ def get_venues(
         expand_subgroups: 是否展开子 track（默认 True）
         verbose: 是否打印日志
         exclude_workshops: 是否排除 Workshop（默认 True）
+        main_track_only: 是否只保留主会 Track（默认 True）
         
     Returns:
         符合条件的 venue ID 列表
-        
-    Example:
-        >>> from paper_scraper.utils import get_client
-        >>> client = get_client()
-        >>> venues = get_venues(client, ['ICLR'], ['2024'])
-        >>> # 返回类似 ['ICLR.cc/2024/Conference']
     """
     # 从 API v2 获取所有 venues
     all_venues = []
@@ -264,7 +260,52 @@ def get_venues(
     if verbose and len(expanded_venues) > len(filtered_venues):
         print(f"\n📊 Venue 扩展: {len(filtered_venues)} -> {len(expanded_venues)} 个 venue")
     
-    return expanded_venues
+    # 全局去重（保持顺序）
+    unique_venues = list(dict.fromkeys(expanded_venues))
+    
+    if verbose and len(unique_venues) < len(expanded_venues):
+        print(f"   去重后: {len(unique_venues)} 个 venue")
+    
+    # 最终过滤：Main Track Only
+    if main_track_only:
+        final_venues = []
+        for venue in unique_venues:
+            lower = venue.lower()
+            
+            # 排除 Competition
+            if 'competition' in lower:
+                continue
+            
+            # 排除 High School Projects
+            if 'high_school' in lower:
+                continue
+                
+            # 排除 Creative AI
+            if 'creative_ai' in lower:
+                continue
+                
+            # 排除 Demo
+            if 'demo' in lower:
+                continue
+
+            # 排除 Datasets and Benchmarks (通常作为独立 Track)
+            # 除非用户想要，但这里默认排除以只保留 "主会"
+            if 'datasets_and_benchmarks' in lower:
+                continue
+
+            # 排除其他 Track (除非是 Track/Main)
+            # NeurIPS.cc/2024/Conference 应该保留
+            if 'track' in lower and 'track/main' not in lower:
+                continue
+            
+            final_venues.append(venue)
+        
+        if verbose and len(final_venues) < len(unique_venues):
+            print(f"   主会过滤后: {len(final_venues)} 个 venue")
+        
+        return final_venues
+        
+    return unique_venues
 
 
 def _should_expand_venue(venue: str) -> bool:

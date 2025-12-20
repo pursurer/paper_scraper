@@ -254,7 +254,8 @@ def run_openreview_scrape(
             extractor=extractor,
             fpath=output,
             fns=[modify_paper],
-            exclude_workshops=True  # 默认排除 Workshop
+            exclude_workshops=True,  # 默认排除 Workshop
+            main_track_only=True     # 默认只获取主会论文
         )
         
         if keywords:
