@@ -292,6 +292,14 @@ def get_venues(
             # 除非用户想要，但这里默认排除以只保留 "主会"
             if 'datasets_and_benchmarks' in lower:
                 continue
+            
+            # 排除 Education Program
+            if 'education' in lower:
+                continue
+            
+            # 排除 Position Paper Track
+            if 'position_paper' in lower:
+                continue
 
             # 排除其他 Track (除非是 Track/Main)
             # NeurIPS.cc/2024/Conference 应该保留

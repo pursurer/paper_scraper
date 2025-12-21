@@ -59,21 +59,19 @@ cp config/config.example.py config/config.py
 python -m paper_scraper --list-conferences
 
 # 爬取 IJCAI 2024 (网页爬取)
-# 默认输出到 paper/ijcai_2024.csv
-python -m paper_scraper -c IJCAI -y 2024
+python -m paper_scraper -c IJCAI -y 2024 -o ijcai_2024.csv
 
 # 爬取 ICLR 2024 (OpenReview)
-# 默认仅爬取主会论文，自动过滤 Workshop
-python -m paper_scraper -c ICLR -y 2024
+python -m paper_scraper -c ICLR -y 2024 -o iclr_2024.csv
 
 # 批量爬取多会议
-python -m paper_scraper -c ICLR ICML NeurIPS -y 2023 2024 --output-dir ./my_papers
+python -m paper_scraper -c ICLR ICML NeurIPS -y 2023 2024 --output-dir ./output
 
-# 指定输出文件
-python -m paper_scraper -c ACL -y 2025 -o acl_2025_full.csv
+# 带关键词过滤
+python -m paper_scraper -c ICLR -y 2024 -k "reinforcement learning" -o rl_papers.csv
 
 # PDF 提取 (AAMAS)
-python -m paper_scraper --pdf-dir ./aamas2025 -y 2025
+python -m paper_scraper --pdf-dir ./aamas2025 -y 2025 -o aamas_2025.csv
 ```
 
 ### Python API
