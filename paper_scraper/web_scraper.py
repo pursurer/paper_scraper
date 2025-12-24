@@ -12,6 +12,7 @@ import os
 import re
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from bs4 import BeautifulSoup
@@ -357,8 +358,9 @@ def _scrape_aaai_track(
     year: int,
     verbose: bool = True
 ) -> List[Dict[str, Any]]:
-    """爬取单个 AAAI track 的论文。"""
-    papers = []
+    """爬取单个 AAAI track 的论文，包含摘要提取（使用并发加速）。"""
+    papers_data = []  # 存储论文基本信息和详情页链接
+    article_links = []  # 存储需要提取摘要的链接
     
     headers = {
         'User-Agent': get_random_user_agent(),
@@ -385,18 +387,36 @@ def _scrape_aaai_track(
                         continue
                     title = h3.get_text(strip=True)
                     
+                    # 获取 PDF 链接
                     pdf_link = li.find('a', {'class': 'obj_galley_link'})
                     pdf_url = ''
                     if pdf_link:
                         pdf_url = pdf_link.get('href', '').replace('view', 'download')
                     
-                    papers.append({
+                    # 获取论文详情页链接（用于提取摘要）
+                    article_link = None
+                    title_link = h3.find('a')
+                    if title_link:
+                        article_href = title_link.get('href', '')
+                        if article_href:
+                            if article_href.startswith('http'):
+                                article_link = article_href
+                            else:
+                                article_link = urljoin('https://ojs.aaai.org', article_href)
+                    
+                    paper_data = {
                         'title': title,
                         'pdf_url': pdf_url,
+                        'abstract': '',  # 稍后填充
                         'group': group,
                         'year': str(year),
                         'conference': 'AAAI',
-                    })
+                        'article_link': article_link,
+                    }
+                    papers_data.append(paper_data)
+                    
+                    if article_link:
+                        article_links.append((len(papers_data) - 1, article_link))
                 except Exception:
                     pass
     else:
@@ -417,17 +437,90 @@ def _scrape_aaai_track(
                     pdf_link = li.find('a', {'class': 'wp-block-button'})
                     pdf_url = pdf_link.get('href', '') if pdf_link else ''
                     
-                    papers.append({
+                    # 旧版结构可能没有详情页链接，跳过摘要提取
+                    papers_data.append({
                         'title': title,
                         'pdf_url': pdf_url,
+                        'abstract': '',
                         'group': group,
                         'year': str(year),
                         'conference': 'AAAI',
+                        'article_link': None,
                     })
                 except Exception:
                     pass
     
-    return papers
+    # 并发提取摘要
+    if article_links and verbose:
+        print(f"      正在提取 {len(article_links)} 篇论文的摘要...")
+    
+    def extract_abstract_for_paper(idx_and_link):
+        idx, link = idx_and_link
+        abstract = _extract_aaai_abstract(link, headers, verbose=False)
+        return idx, abstract
+    
+    # 使用线程池并发请求（最多5个并发）
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(extract_abstract_for_paper, item): item for item in article_links}
+        
+        completed = 0
+        for future in as_completed(futures):
+            try:
+                idx, abstract = future.result()
+                papers_data[idx]['abstract'] = abstract
+                completed += 1
+                if verbose and completed % 50 == 0:
+                    print(f"      已提取 {completed}/{len(article_links)} 篇论文摘要...")
+            except Exception:
+                pass
+    
+    # 移除临时字段
+    for paper in papers_data:
+        paper.pop('article_link', None)
+    
+    return papers_data
+
+
+def _extract_aaai_abstract(
+    article_url: str,
+    headers: Dict[str, str],
+    verbose: bool = True
+) -> str:
+    """
+    从 AAAI 论文详情页提取摘要。
+    
+    Args:
+        article_url: 论文详情页 URL
+        headers: HTTP 请求头
+        verbose: 是否打印日志
+        
+    Returns:
+        摘要文本，失败返回空字符串
+    """
+    try:
+        html = fetch_page(article_url, headers=headers, verbose=False)
+        if not html:
+            return ''
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # 查找摘要 section
+        abstract_section = soup.find('section', {'class': 'item abstract'})
+        if abstract_section:
+            # 移除 <h2 class="label">Abstract</h2>
+            label = abstract_section.find('h2', {'class': 'label'})
+            if label:
+                label.decompose()
+            
+            # 提取文本并清理
+            abstract = abstract_section.get_text(strip=True)
+            # 清理多余空白
+            abstract = re.sub(r'\s+', ' ', abstract)
+            return abstract[:2000]  # 限制长度
+        
+        return ''
+    except Exception:
+        return ''
 
 
 # ============ AISTATS 爬虫 (PMLR) ============
