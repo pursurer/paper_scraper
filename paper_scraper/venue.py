@@ -301,6 +301,14 @@ def get_venues(
             if 'position_paper' in lower:
                 continue
 
+            # 排除 Tiny Papers (ICLR)
+            if 'tinypapers' in lower:
+                continue
+            
+            # 排除 Blog Posts
+            if 'blogposts' in lower:
+                continue
+
             # 排除其他 Track (除非是 Track/Main)
             # NeurIPS.cc/2024/Conference 应该保留
             if 'track' in lower and 'track/main' not in lower:
