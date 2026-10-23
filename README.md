@@ -1,186 +1,138 @@
-# Paper Scraper 📚
+# Paper Scraper
 
-顶会论文获取工具 - 支持 OpenReview、网页爬取、PDF 提取三种数据来源。
+English | [中文](README.zh-CN.md)
 
-[![Tests](https://img.shields.io/badge/tests-293%20passed-brightgreen)]()
-[![Python](https://img.shields.io/badge/python-3.8+-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
+[![Tests](https://github.com/pursurer/paper_scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/pursurer/paper_scraper/actions)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-## ✨ 特性
+A CLI and Python library that collects paper metadata from AI conferences into one CSV format.
+It reads three kinds of source: the OpenReview API, conference websites, and local PDFs.
 
-- **多数据源支持**：OpenReview API、网页爬取、PDF 提取
-- **统一 CLI 工具**：`python -m paper_scraper`
-- **关键词过滤**：标题/摘要/关键词模糊匹配
-- **批量爬取**：支持多会议多年份
-- **CSV 导出**：统一输出格式
+It built [top-ai-conference-papers](https://github.com/pursurer/top-ai-conference-papers):
+23,197 papers from the 2025 editions of 10 conferences.
 
-## 📋 支持的会议
+## Supported conferences
 
-| 来源类型 | 支持会议 |
-|---------|---------|
-| **OpenReview** | ICLR, ICML, NeurIPS |
-| **网页爬取** | AAAI, IJCAI, ACL, EMNLP, NAACL, AISTATS |
-| **PDF 提取** | AAMAS |
+| Source | Conferences |
+| --- | --- |
+| OpenReview API | ICLR, ICML, NeurIPS |
+| Conference websites | AAAI, IJCAI, ACL, EMNLP, NAACL, AISTATS |
+| Local PDFs | AAMAS |
 
-## 🚀 快速开始
-
-### 安装
+## Install
 
 ```bash
 git clone https://github.com/pursurer/paper_scraper.git
 cd paper_scraper
-
-# 创建虚拟环境
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 安装依赖
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 配置（仅 OpenReview 来源需要）
+Only the OpenReview source needs an account. Set it in the environment:
 
 ```bash
-# 方式一：环境变量
 export OPENREVIEW_EMAIL="your_email@example.com"
 export OPENREVIEW_PASSWORD="your_password"
-
-# 方式二：配置文件
-cp config/config.example.py config/config.py
-# 编辑 config.py 填入凭证
 ```
 
-## 💻 使用方法
+or copy `config/config.example.py` to `config/config.py` and fill it in.
 
-### 命令行 (CLI)
+## Command line
 
 ```bash
-# 列出支持的会议
+# List supported conferences
 python -m paper_scraper --list-conferences
 
-# 爬取 IJCAI 2024 (网页爬取)
-python -m paper_scraper -c IJCAI -y 2024 -o ijcai_2024.csv
+# One conference, one year
+python -m paper_scraper -c IJCAI -y 2024 -o ijcai_2024.csv     # website
+python -m paper_scraper -c ICLR -y 2024 -o iclr_2024.csv       # OpenReview
 
-# 爬取 ICLR 2024 (OpenReview)
-python -m paper_scraper -c ICLR -y 2024 -o iclr_2024.csv
-
-# 批量爬取多会议
+# Several conferences and years into one folder
 python -m paper_scraper -c ICLR ICML NeurIPS -y 2023 2024 --output-dir ./output
 
-# 带关键词过滤
+# OpenReview: keep only papers whose title, abstract or keywords fuzzily match
 python -m paper_scraper -c ICLR -y 2024 -k "reinforcement learning" -o rl_papers.csv
 
-# PDF 提取 (AAMAS)
+# AAMAS: extract metadata from PDFs you have downloaded
 python -m paper_scraper --pdf-dir ./aamas2025 -y 2025 -o aamas_2025.csv
 ```
 
-### Python API
+## Python
 
 ```python
-# ============ OpenReview 来源 ============
-from paper_scraper import Scraper, Extractor, title_filter, abstract_filter
+from paper_scraper import Extractor, Scraper, abstract_filter, title_filter
 
+# OpenReview
 extractor = Extractor(
-    fields=['forum'],
-    subfields={'content': ['title', 'abstract', 'keywords', 'pdf']}
+    fields=["forum"],
+    subfields={"content": ["title", "abstract", "keywords", "pdf"]},
 )
-
 scraper = Scraper(
-    conferences=['ICLR'],
-    years=['2024'],
-    keywords=['reinforcement learning'],
+    conferences=["ICLR"],
+    years=["2024"],
+    keywords=["reinforcement learning"],
     extractor=extractor,
-    fpath='iclr_2024.csv'
+    fpath="iclr_2024.csv",
 )
 scraper.add_filter(title_filter)
 scraper.add_filter(abstract_filter)
 scraper()
 
-# ============ 网页爬取来源 ============
-from paper_scraper import scrape_ijcai, scrape_aaai, scrape_acl, batch_scrape
+# Conference websites
+from paper_scraper import batch_scrape, scrape_aaai, scrape_ijcai
 
-# 单会议
-papers = scrape_ijcai(2024, output_path='ijcai_2024.csv')
-papers = scrape_aaai(2025, output_path='aaai_2025.csv')
-papers = scrape_acl(2023, output_path='acl_2023.csv')
+papers = scrape_ijcai(2024, output_path="ijcai_2024.csv")
+papers = scrape_aaai(2025, output_path="aaai_2025.csv")
+results = batch_scrape(["IJCAI", "AAAI"], [2023, 2024], output_dir="./output")
 
-# 批量
-results = batch_scrape(['IJCAI', 'AAAI'], [2023, 2024], output_dir='./output')
-
-# ============ PDF 提取 ============
+# Local PDFs
 from paper_scraper import extract_aamas_metadata
 
-papers = extract_aamas_metadata('./aamas2025/', 2025, output_path='aamas_2025.csv')
+papers = extract_aamas_metadata("./aamas2025/", 2025, output_path="aamas_2025.csv")
 ```
 
-## 📁 输出格式
+## Output
 
-CSV 文件包含以下字段：
+Every source writes the same CSV columns:
 
-| 字段 | 说明 |
-|------|------|
-| `id` | 唯一标识 (会议名_年份_序号) |
-| `title` | 论文标题 |
-| `keywords` | 关键词 |
-| `abstract` | 摘要 |
-| `pdf` | PDF 链接 |
-| `forum` | 论文页面链接 |
-| `year` | 年份 |
-| `presentation_type` | 展示类型 (Oral/Spotlight/Poster) |
+| Column | Meaning |
+| --- | --- |
+| `id` | Unique id: conference, year, index |
+| `title` | Paper title |
+| `keywords` | Keywords |
+| `abstract` | Abstract |
+| `pdf` | PDF link |
+| `forum` | Paper page link |
+| `year` | Year |
+| `presentation_type` | Oral, Spotlight or Poster |
 
-> **注意**：不同来源的字段完整性有所不同：
-> - **OpenReview**：所有字段完整，包含 presentation_type
-> - **网页爬取**：部分会议可能缺少 abstract/keywords
-> - **PDF 提取**：从 PDF 中提取 abstract/keywords
+How complete the columns are depends on the source. OpenReview fills all of them. Some
+conference websites have no abstracts or keywords. For PDFs, the abstract and keywords come
+from the paper itself.
 
-## ⚙️ 配置选项
+## Settings
 
-支持环境变量配置：
+| Environment variable | Meaning | Default |
+| --- | --- | --- |
+| `OPENREVIEW_EMAIL` | OpenReview account email | none |
+| `OPENREVIEW_PASSWORD` | OpenReview account password | none |
+| `PAPER_SCRAPER_DELAY_MIN` | Shortest wait between requests, seconds | 2.0 |
+| `PAPER_SCRAPER_DELAY_MAX` | Longest wait between requests, seconds | 5.0 |
+| `PAPER_SCRAPER_TIMEOUT` | Request timeout, seconds | 30 |
+| `PAPER_SCRAPER_RETRIES` | Retries per request | 3 |
+| `PAPER_SCRAPER_OUTPUT_DIR` | Output folder | ./output |
 
-| 环境变量 | 说明 | 默认值 |
-|---------|------|--------|
-| `OPENREVIEW_EMAIL` | OpenReview 邮箱 | - |
-| `OPENREVIEW_PASSWORD` | OpenReview 密码 | - |
-| `PAPER_SCRAPER_DELAY_MIN` | 最小请求延迟(秒) | 2.0 |
-| `PAPER_SCRAPER_DELAY_MAX` | 最大请求延迟(秒) | 5.0 |
-| `PAPER_SCRAPER_TIMEOUT` | 请求超时(秒) | 30 |
-| `PAPER_SCRAPER_RETRIES` | 重试次数 | 3 |
-| `PAPER_SCRAPER_OUTPUT_DIR` | 输出目录 | ./output |
-
-## 🧪 运行测试
+## Tests
 
 ```bash
-# 运行所有测试
-python -m pytest tests/ -v
-
-# 运行单个测试文件
-python -m pytest tests/test_web_scraper.py -v
+python -m pytest tests/
 ```
 
-## 📦 项目结构
+The 293 tests mock OpenReview and HTTP calls, so they need no account and finish in a few
+seconds. CI runs them on Python 3.10, 3.11 and 3.12.
 
-```
-paper_scraper/
-├── paper_scraper/          # 核心包
-│   ├── __init__.py         # 包入口
-│   ├── __main__.py         # CLI 入口
-│   ├── scraper.py          # Scraper 主类
-│   ├── extractor.py        # 字段提取器
-│   ├── filters.py          # 关键词过滤器
-│   ├── venue.py            # Venue 处理
-│   ├── paper.py            # 论文获取
-│   ├── web_scraper.py      # 网页爬取
-│   ├── pdf_extractor.py    # PDF 提取
-│   └── utils.py            # 工具函数
-├── config/                 # 配置
-├── tests/                  # 测试
-└── requirements.txt        # 依赖
-```
+## License
 
-## 📄 License
-
-MIT License
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
+MIT, see [LICENSE](LICENSE).
