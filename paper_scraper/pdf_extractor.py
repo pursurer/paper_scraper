@@ -15,14 +15,19 @@ from .utils import to_csv
 # 尝试导入 PDF 库
 _PDF_LIBRARY = None
 try:
-    import fitz  # PyMuPDF
+    # PyMuPDF 1.24.3+ 的模块名；旧名 fitz 已弃用，将被移除
+    import pymupdf
     _PDF_LIBRARY = 'pymupdf'
 except ImportError:
     try:
-        from pdfminer.high_level import extract_text as pdfminer_extract
-        _PDF_LIBRARY = 'pdfminer'
+        import fitz as pymupdf  # 更早的 PyMuPDF 只有 fitz 这个名字
+        _PDF_LIBRARY = 'pymupdf'
     except ImportError:
-        pass
+        try:
+            from pdfminer.high_level import extract_text as pdfminer_extract
+            _PDF_LIBRARY = 'pdfminer'
+        except ImportError:
+            pass
 
 
 def get_pdf_library() -> Optional[str]:
@@ -55,8 +60,7 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     
     try:
         if _PDF_LIBRARY == 'pymupdf':
-            import fitz
-            doc = fitz.open(pdf_path)
+            doc = pymupdf.open(pdf_path)
             text = ""
             for page in doc:
                 text += page.get_text()
